@@ -1,7 +1,6 @@
 package srv
 
 import (
-	"fmt"
 	"html/template"
 	"net/http"
 	"path"
@@ -23,7 +22,6 @@ type (
 	// Server encapsulates the Linkerd control plane's web dashboard server.
 	Server struct {
 		templateDir     string
-		staticDir       string
 		reload          bool
 		templateContext templateContext
 		templates       map[string]*template.Template
@@ -70,7 +68,6 @@ func NewServer(
 ) *http.Server {
 	server := &Server{
 		templateDir:     templateDir,
-		staticDir:       staticDir,
 		templateContext: templateContext{webpackDevServer},
 		reload:          reload,
 	}
@@ -85,7 +82,6 @@ func NewServer(
 	handler := &handler{
 		apiClient:           apiClient,
 		render:              server.RenderTemplate,
-		serveFile:           server.serveFile,
 		uuid:                uuid,
 		controllerNamespace: controllerNamespace,
 		singleNamespace:     singleNamespace,
@@ -116,9 +112,7 @@ func NewServer(
 	server.router.GET("/top", handler.handleIndex)
 	server.router.GET("/routes", handler.handleIndex)
 	server.router.GET("/profiles/new", handler.handleProfileDownload)
-	server.router.ServeFiles(
-		"/dist/*filepath", // add catch-all parameter to match all files in dir
-		filesonly.FileSystem(server.staticDir))
+	server.router.GET("/dist/*filepath", mkStaticHandler(staticDir))
 
 	// webapp api routes
 	server.router.GET("/api/version", handler.handleAPIVersion)
@@ -188,17 +182,17 @@ func safelyJoinPath(rootPath, userPath string) string {
 	return filepath.Join(rootPath, path.Clean("/"+userPath))
 }
 
-func (s *Server) serveFile(w http.ResponseWriter, fileName string, templateName string, args interface{}) error {
-	dispositionHeaderVal := fmt.Sprintf("attachment; filename='%s'", fileName)
+func mkStaticHandler(staticDir string) httprouter.Handle {
+	fileServer := http.FileServer(filesonly.FileSystem(staticDir))
 
-	w.Header().Set("Content-Type", "text/yaml")
-	w.Header().Set("Content-Disposition", dispositionHeaderVal)
+	return func(w http.ResponseWriter, req *http.Request, p httprouter.Params) {
+		filepath := p.ByName("filepath")
+		if filepath == "/index_bundle.js" {
+			// don't cache the bundle because it references a hashed js file
+			w.Header().Set("Cache-Control", "no-cache, private, max-age=0")
+		}
 
-	template, err := s.loadTemplate(templateName)
-	if err != nil {
-		return err
+		req.URL.Path = filepath
+		fileServer.ServeHTTP(w, req)
 	}
-
-	template.Execute(w, args)
-	return nil
 }

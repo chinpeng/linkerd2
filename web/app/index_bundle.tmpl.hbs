@@ -9,10 +9,24 @@
       id && (js.id = id);
       fjs.parentNode.insertBefore(js, fjs);
     };
+
+  console.log("FOO FJS");
+  console.log(fjs);
+  console.log(fjs.src);
+
+  console.log("FOO1");
+  console.log(doc.getElementsByTagName("script"));
+
+  let root = fjs.src.substring(0, fjs.src.indexOf("dist"));
+
   {{#each htmlWebpackPlugin.files.chunks}}
-  add('{{this.entry}}');
+  add(root+'{{this.entry}}');
   {{/each}}
   {{#if htmlWebpackPlugin.options.devServer}}
   add('{{this}}');
   {{/if}}
+
+  {{!-- {{{htmlWebpackPlugin}}}
+
+  {{{htmlWebpackPlugin.options}}} --}}
 }(document, 'script'));
