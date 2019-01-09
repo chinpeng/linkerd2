@@ -12,6 +12,7 @@ import React from 'react';
 import Spinner from './util/Spinner.jsx';
 import TopRoutesTabs from './TopRoutesTabs.jsx';
 import Typography from '@material-ui/core/Typography';
+import WarningMessage from './WarningMessage.jsx';
 import _filter from 'lodash/filter';
 import _get from 'lodash/get';
 import _isEmpty from 'lodash/isEmpty';
@@ -227,7 +228,8 @@ export class ResourceDetailBase extends React.Component {
 
     let upstreams = neighborMetrics.upstream.concat(unmeshed);
 
-    console.log(resourceMetrics[0]);
+    let showNoTrafficMsg = resourceIsMeshed && !_isEmpty(resourceMetrics) && resourceMetrics[0].totalRequests === 0;
+
     return (
       <div>
         {
@@ -237,6 +239,11 @@ export class ResourceDetailBase extends React.Component {
               resourceName={resourceName}
               resourceType={resourceType} />
           </React.Fragment>
+        }
+
+        {
+          !showNoTrafficMsg ? null : <WarningMessage
+            message={`${resourceType}/${resourceName} is not receiving any traffic.`} />
         }
 
         <Octopus
